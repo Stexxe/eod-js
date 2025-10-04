@@ -1,10 +1,15 @@
 'use strict';
 
 const delColor = "rgb(34, 51, 55)";
-const title = "ECHOES OF THE DEEP";
+const title = "СОКРОВИЩА ГЛУБИН";
+const loseText = "Ты проиграла 😓";
 
 const fieldMaxCols = 8;
 const fieldMaxRows = 8;
+
+let gameOver = false;
+let numTreasures = 3;
+let maxPings = 3;
 
 const Nothing = -3;
 const Treasure = -2;
@@ -18,12 +23,14 @@ for (let r = 0; r < fieldMaxRows; r++) {
     }
 }
 
-field[5][2] = Treasure;
-field[0][0] = Treasure;
-field[4][4] = Treasure;
-let numTreasures = 3; // TODO: Compute
-
-let pingsUsed = 0;
+for (let i = numTreasures; i > 0; ) {
+    let row = random(0, fieldMaxRows);
+    let col = random(0, fieldMaxCols);
+    if (field[row][col] === Nothing && computeMinDistance(row, col) > 1) {
+        field[row][col] = Treasure;
+        i--;
+    }
+}
 
 // TODO: Loading or menu
 let treasureImage = new Image();
@@ -54,25 +61,27 @@ let cellSize = fieldWidth / fieldMaxCols;
 let fieldActualWidth = cellSize * fieldMaxCols;
 let fieldActualHeight = cellSize * fieldMaxRows;
 
+let bgImage = new Image();
+let bgSaved = false;
+bgImage.onload = () => {
+    bgSaved = true;
+}
+
 window.addEventListener("click", function (e) {
+    if (gameOver) return;
     let col = Math.floor((e.clientX - fieldPos.x) / cellSize);
     let row = Math.floor((e.clientY - fieldPos.y) / cellSize);
 
     if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows && numTreasures > 0) {
         let content = field[row][col];
         if (content === Nothing) {
-            let minDistance = Math.max(fieldMaxRows, fieldMaxCols);
-            for (let r = 0; r < fieldMaxRows; r++) {
-                for (let c = 0; c < fieldMaxCols; c++) {
-                    if (field[r][c] === Treasure) {
-                        let dist = distance({row, col}, {row: r, col: c});
-                        if (dist < minDistance) minDistance = dist;
-                    }
-                }
-            }
-
-            pingsUsed++;
+            let minDistance = computeMinDistance(row, col);
+            maxPings--;
             field[row][col] = minDistance;
+
+            if (maxPings <= 0) {
+                gameOver = true;
+            }
         } else if (content === Treasure) {
             field[row][col] = RevealedTreasure;
             numTreasures--;
@@ -80,12 +89,47 @@ window.addEventListener("click", function (e) {
     }
 });
 
+function random(from, to) {
+    return Math.floor(Math.random() * (to - from) + from);
+}
+
+function computeMinDistance(row, col) {
+    let minDistance = Math.max(fieldMaxRows, fieldMaxCols);
+    for (let r = 0; r < fieldMaxRows; r++) {
+        for (let c = 0; c < fieldMaxCols; c++) {
+            if (field[r][c] === Treasure) {
+                let dist = distance({row, col}, {row: r, col: c});
+                if (dist < minDistance) minDistance = dist;
+            }
+        }
+    }
+    return minDistance;
+}
+
 function distance(cell1, cell2) {
     return Math.max(Math.abs(cell1.col - cell2.col), Math.abs(cell1.row - cell2.row));
 }
 
 requestAnimationFrame(function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameOver) {
+        if (!bgSaved) {
+            ctx.filter = "blur(4px)";
+        } else {
+            ctx.filter = "none"
+            ctx.drawImage(bgImage, 0, 0);
+
+            ctx.fillStyle = "red";
+            ctx.font = "32px Share Tech Mono, monospace";
+            ctx.textBaseline = "top";
+            ctx.fillText("Ты проиграла 😓", 0, 0);
+
+            requestAnimationFrame(update);
+
+            return;
+        }
+    }
 
     ctx.fillStyle = "rgb(21, 24, 27)"
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -170,10 +214,16 @@ requestAnimationFrame(function update() {
     ctx.save();
     ctx.font = "16px Share Tech Mono, monospace";
     ctx.fillStyle = "#c9c7c7";
-    ctx.fillText(`PINGS USED: ${pingsUsed}`, 0, 0);
+    ctx.fillText(`ОСТАЛОСЬ ЖМАКАНИЙ: ${maxPings}`, 0, 0);
     ctx.restore();
 
     ctx.restore();
+
+    if (gameOver && !bgSaved) {
+        ctx.save()
+        bgImage.src = canvas.toDataURL("image/png");
+        ctx.restore();
+    }
 
     requestAnimationFrame(update);
 });
