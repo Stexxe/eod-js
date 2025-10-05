@@ -2,11 +2,16 @@
 
 const delColor = "rgb(34, 51, 55)";
 const title = "СОКРОВИЩА ГЛУБИН";
-const loseText = "Ты проиграла 😓";
+const loseText = "Увы, проиграла 😓";
+const winText = "Выиграла 😃";
+const menuStartText = "ИГРАТЬ ▶";
+
+let startButton = {};
 
 const fieldMaxCols = 8;
 const fieldMaxRows = 8;
 
+let gameStarted = false;
 let gameOver = false;
 let numTreasures = 3;
 let maxPings = 3;
@@ -35,6 +40,9 @@ for (let i = numTreasures; i > 0; ) {
 // TODO: Loading or menu
 let treasureImage = new Image();
 treasureImage.src = "assets/sprites/treasure_64x64.png";
+
+let menuBgImage = new Image();
+menuBgImage.src = "assets/bg.jpg";
 
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
@@ -72,6 +80,14 @@ window.addEventListener("click", function (e) {
     let col = Math.floor((e.clientX - fieldPos.x) / cellSize);
     let row = Math.floor((e.clientY - fieldPos.y) / cellSize);
 
+    console.log(e.clientX, e.clientY, startButton);
+    if (e.clientX >= startButton.x && e.clientX <= startButton.x + startButton.width &&
+        e.clientY >= startButton.y && e.clientY <= startButton.y + startButton.height) {
+
+        console.log("Start click");
+        return;
+    }
+
     if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows && numTreasures > 0) {
         let content = field[row][col];
         if (content === Nothing) {
@@ -85,6 +101,7 @@ window.addEventListener("click", function (e) {
         } else if (content === Treasure) {
             field[row][col] = RevealedTreasure;
             numTreasures--;
+            gameOver = (numTreasures === 0);
         }
     }
 });
@@ -113,6 +130,41 @@ function distance(cell1, cell2) {
 requestAnimationFrame(function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    if (!gameStarted) {
+        ctx.save();
+        ctx.filter = "invert(55%) contrast(100%) hue-rotate(45deg) sepia(30%)";
+        ctx.drawImage(menuBgImage, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(255,255,255,0.7)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        startButton.x = pad;
+        startButton.y = canvas.height / 2;
+        ctx.translate(startButton.x, startButton.y);
+        ctx.strokeStyle = "white";
+        ctx.beginPath();
+        startButton.width = canvas.width - pad*2;
+        startButton.height = 80;
+        ctx.roundRect(0, 0, startButton.width, startButton.height, 25);
+        ctx.stroke();
+
+        ctx.font = "48px Share Tech Mono, monospace";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "white";
+
+        let meas = ctx.measureText(menuStartText);
+        ctx.fillText(menuStartText, startButton.width/2 - meas.width/2, startButton.height/2 - (meas.actualBoundingBoxDescent-meas.actualBoundingBoxAscent)/2);
+
+        ctx.restore();
+
+        requestAnimationFrame(update);
+        return;
+    }
+
     if (gameOver) {
         if (!bgSaved) {
             ctx.filter = "blur(4px)";
@@ -120,10 +172,22 @@ requestAnimationFrame(function update() {
             ctx.filter = "none"
             ctx.drawImage(bgImage, 0, 0);
 
+            ctx.shadowColor = 'rgba(255,255,255,0.7)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
             ctx.fillStyle = "red";
             ctx.font = "32px Share Tech Mono, monospace";
             ctx.textBaseline = "top";
-            ctx.fillText("Ты проиграла 😓", 0, 0);
+
+            let text = loseText;
+            if (numTreasures === 0) {
+                text = winText;
+            }
+
+            let loseTextMeas = ctx.measureText(text)
+            let lostTextHeight = loseTextMeas.actualBoundingBoxDescent - loseTextMeas.actualBoundingBoxAscent;
+            ctx.fillText(text, canvas.width/2 - loseTextMeas.width/2, canvas.height/2 - lostTextHeight);
 
             requestAnimationFrame(update);
 
