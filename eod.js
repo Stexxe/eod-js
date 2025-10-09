@@ -8,7 +8,6 @@ const winText = "Выиграла 😃";
 const menuStartText = "ИГРАТЬ ▶";
 
 const Nothing = -4;
-const Hint = -3;
 const Treasure = -2;
 const RevealedTreasure = -1;
 
@@ -18,6 +17,7 @@ const longPressMs = 500;
 
 let startButton = {};
 let againButton = {};
+let toggleButton = {};
 
 const fieldMaxCols = 8;
 const fieldMaxRows = 8;
@@ -27,6 +27,11 @@ let gameOver = false;
 let numTreasures;
 let pingsCount;
 let field;
+let hints;
+
+let globalPos = {x: 0, y: 0};
+
+let putHint;
 
 let treasureImage = new Image();
 treasureImage.src = "assets/sprites/treasure_64x64.png";
@@ -68,9 +73,20 @@ let bgSaved;
 function init() {
     gameStarted = false;
     gameOver = false;
+    putHint = true;
+
+    globalPos = {x: 0, y: 0};
 
     numTreasures = MAX_TREASURES;
     pingsCount = MAX_PINGS;
+
+    hints = [];
+    for (let r = 0; r < fieldMaxRows; r++) {
+        hints[r] = [];
+        for (let c = 0; c < fieldMaxCols; c++) {
+            hints[r][c] = false;
+        }
+    }
 
     field = [];
     for (let r = 0; r < fieldMaxRows; r++) {
@@ -110,7 +126,8 @@ let pressTimer;
 
 window.addEventListener("contextmenu", function(e) { e.preventDefault(); })
 
-
+// TODO: Add locator effect
+// TODO: Add instruction below the field
 window.addEventListener("touchstart", function (e) {
     let touch = e.touches[0] || e.changedTouches[0];
     let touchX = touch.clientX;
@@ -147,8 +164,14 @@ window.addEventListener("touchstart", function (e) {
         pressTime = performance.now();
         clearTimeout(pressTimer);
         pressTimer = setTimeout(() => {
-            if (field[row][col] === Nothing || field[row][col] === Treasure) field[row][col] = Hint;
+            hints[row][col] = putHint;
         }, longPressMs);
+    } else {
+        if (touchX >= toggleButton.x && touchX <= toggleButton.x + toggleButton.width &&
+            touchY >= toggleButton.y && touchY <= toggleButton.y + toggleButton.height) {
+
+            putHint = !putHint;
+        }
     }
 });
 
@@ -163,7 +186,7 @@ window.addEventListener("touchmove", function (e) {
         let row = Math.floor((touchY - fieldPos.y) / cellSize);
 
         if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows) {
-            if (field[row][col] === Nothing || field[row][col] === Treasure) field[row][col] = Hint;
+            hints[row][col] = putHint;
         }
     }
 });
@@ -199,6 +222,13 @@ window.addEventListener("touchend", function (e) {
         }
     }
 });
+
+function translate(dx, dy) {
+    globalPos.x += dx;
+    globalPos.y += dy;
+
+    ctx.translate(dx, dy);
+}
 
 function random(from, to) {
     return Math.floor(Math.random() * (to - from) + from);
@@ -271,7 +301,7 @@ requestAnimationFrame(function update() {
 
         ctx.save()
 
-        ctx.translate(pad, pad * 3);
+        translate(pad, pad * 3);
 
         applyShadow();
 
@@ -280,11 +310,11 @@ requestAnimationFrame(function update() {
         ctx.textBaseline = "top";
         let firstPart = "С Днем Рождения 🎁";
         ctx.fillText(firstPart, 0, 0)
-        ctx.translate(0, textDim(firstPart).height + pad);
+        translate(0, textDim(firstPart).height + pad);
 
         let secondPart = "Моя Любимая ❤️"
         ctx.fillText(secondPart, 0, 0)
-        ctx.translate(0, textDim(secondPart).height + pad);
+        translate(0, textDim(secondPart).height + pad);
         ctx.fillText("Валька!!! 🥳", 0, 0);
         ctx.restore();
 
@@ -293,7 +323,7 @@ requestAnimationFrame(function update() {
         startButton.y = canvas.height / 2;
         startButton.width = canvas.width - pad*2;
         startButton.height = 80;
-        ctx.translate(startButton.x, startButton.y);
+        translate(startButton.x, startButton.y);
 
         drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
 
@@ -335,11 +365,12 @@ requestAnimationFrame(function update() {
             againButton.y = canvas.height / 2 + pad;
             againButton.width = canvas.width - pad*2;
             againButton.height = 80;
-            ctx.translate(pad, canvas.height / 2 + pad);
+            translate(pad, canvas.height / 2 + pad);
             drawButton("Заново ↻", againButton.width, againButton.height, "white", "white");
             ctx.restore()
 
             ctx.restore()
+            globalPos = {x: 0, y: 0};
 
             requestAnimationFrame(update);
 
@@ -354,12 +385,12 @@ requestAnimationFrame(function update() {
 
     ctx.save();
 
-    ctx.translate(pad, pad);
+    translate(pad, pad);
     ctx.font = "20px Share Tech Mono, monospace";
     ctx.textBaseline = "top";
 
     ctx.fillText(title, 0, 0);
-    ctx.translate(0, titleHeight + 20);
+    translate(0, titleHeight + 20);
 
     ctx.strokeStyle = delColor;
     ctx.beginPath();
@@ -383,14 +414,6 @@ requestAnimationFrame(function update() {
             switch (content) {
                 case Nothing: {
                     // Render nothing
-                } break;
-                case Hint: {
-                    let w = cellSize/1.5;
-                    let h = cellSize/1.5;
-                    let x = c  * cellSize + cellSize/2 - w / 2;
-                    let y = r * cellSize + cellSize/2 - w / 2;
-
-                    ctx.drawImage(markImage, x, y, w, h);
                 } break;
                 case Treasure: {
                     // // TODO: Hide after
@@ -416,11 +439,20 @@ requestAnimationFrame(function update() {
                     ctx.fillText(dist.toString(10), x, y);
                 } break;
             }
+
+            if (hints[r][c]) {
+                let w = cellSize/1.5;
+                let h = cellSize/1.5;
+                let x = c  * cellSize + cellSize/2 - w / 2;
+                let y = r * cellSize + cellSize/2 - w / 2;
+
+                ctx.drawImage(markImage, x, y, w, h);
+            }
         }
     }
 
-    ctx.translate(0, fieldActualHeight);
-    ctx.translate(0, 24);
+    translate(0, fieldActualHeight);
+    translate(0, 24);
 
     const gradient = ctx.createLinearGradient(0, 0, fieldActualWidth, 0);
 
@@ -433,7 +465,7 @@ requestAnimationFrame(function update() {
     ctx.fillRect(0, 0, fieldActualWidth, 2);
     ctx.restore();
 
-    ctx.translate(0, 16);
+    translate(0, 16);
 
     ctx.save();
     ctx.font = "16px Share Tech Mono, monospace";
@@ -441,13 +473,31 @@ requestAnimationFrame(function update() {
     ctx.fillText(`ОСТАЛОСЬ ЖМАКАНИЙ: ${pingsCount}`, 0, 0);
     ctx.restore();
 
+    ctx.save();
+
+    toggleButton.width = toggleButton.height = 64;
+
+    ctx.strokeStyle = "white";
+    translate(canvas.width - pad*2 - toggleButton.width, 0);
+    toggleButton.x = globalPos.x;
+    toggleButton.y = globalPos.y;
+    ctx.fillStyle = putHint ? "rgb(130,195,115)" : "rgb(221,106,114)";
+    ctx.beginPath();
+    ctx.fillRect(0, 0, toggleButton.width, toggleButton.height);
+    ctx.stroke();
+    ctx.drawImage(markImage, 0, 0, toggleButton.width, toggleButton.height);
     ctx.restore();
+
+    ctx.restore();
+
 
     if (gameOver && !bgSaved) {
         ctx.save()
         bgImage.src = canvas.toDataURL("image/png");
         ctx.restore();
     }
+
+    globalPos = {x: 0, y: 0};
 
     requestAnimationFrame(update);
 });
