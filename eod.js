@@ -1,43 +1,32 @@
 'use strict';
 
 const delColor = "rgb(34, 51, 55)";
+const bgColor = "rgb(21, 24, 27)";
 const title = "СОКРОВИЩА ГЛУБИН";
 const loseText = "Увы, проиграла 😓";
 const winText = "Выиграла 😃";
 const menuStartText = "ИГРАТЬ ▶";
 
+const Nothing = -3;
+const Treasure = -2;
+const RevealedTreasure = -1;
+
+const MAX_TREASURES = 3;
+const MAX_PINGS = 3;
+
 let startButton = {};
+let againButton = {};
 
 const fieldMaxCols = 8;
 const fieldMaxRows = 8;
 
 let gameStarted = false;
 let gameOver = false;
-let numTreasures = 3;
-let maxPings = 3;
+let numTreasures;
+let pingsCount;
+let field;
 
-const Nothing = -3;
-const Treasure = -2;
-const RevealedTreasure = -1;
 
-let field = [];
-for (let r = 0; r < fieldMaxRows; r++) {
-    field[r] = [];
-    for (let c = 0; c < fieldMaxCols; c++) {
-        field[r][c] = Nothing;
-    }
-}
-
-for (let i = numTreasures; i > 0; ) {
-    let row = random(0, fieldMaxRows);
-    let col = random(0, fieldMaxCols);
-    if (field[row][col] === Nothing && computeMinDistance(row, col) > 1) {
-        field[row][col] = Treasure;
-        i--;
-    }
-}
-
-// TODO: Loading or menu
 let treasureImage = new Image();
 treasureImage.src = "assets/sprites/treasure_64x64.png";
 
@@ -61,41 +50,88 @@ for (let i = 0; i < 10; i++) {
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let pad = 32;
+const pad = 32;
 let fieldPos = {x: pad, y: pad + titleHeight + 20};
 
-let fieldWidth = canvas.width - pad * 2;
-let cellSize = fieldWidth / fieldMaxCols;
-let fieldActualWidth = cellSize * fieldMaxCols;
-let fieldActualHeight = cellSize * fieldMaxRows;
+let fieldWidth;
+let cellSize;
+let fieldActualWidth;
+let fieldActualHeight;
 
-let bgImage = new Image();
-let bgSaved = false;
-bgImage.onload = () => {
-    bgSaved = true;
+let bgImage;
+let bgSaved;
+
+function init() {
+    gameStarted = false;
+    gameOver = false;
+
+    numTreasures = MAX_TREASURES;
+    pingsCount = MAX_PINGS;
+
+    field = [];
+    for (let r = 0; r < fieldMaxRows; r++) {
+        field[r] = [];
+        for (let c = 0; c < fieldMaxCols; c++) {
+            field[r][c] = Nothing;
+        }
+    }
+
+    for (let i = numTreasures; i > 0; ) {
+        let row = random(0, fieldMaxRows);
+        let col = random(0, fieldMaxCols);
+        if (field[row][col] === Nothing && computeMinDistance(row, col) > 1) {
+            field[row][col] = Treasure;
+            i--;
+        }
+    }
+
+    bgImage = new Image();
+    bgSaved = false;
+    bgImage.onload = () => {
+        bgSaved = true;
+    }
+
+    fieldPos = {x: pad, y: pad + titleHeight + 20};
+
+    fieldWidth = canvas.width - pad * 2;
+    cellSize = fieldWidth / fieldMaxCols;
+    fieldActualWidth = cellSize * fieldMaxCols;
+    fieldActualHeight = cellSize * fieldMaxRows;
 }
 
 window.addEventListener("click", function (e) {
-    if (gameOver) return;
-    let col = Math.floor((e.clientX - fieldPos.x) / cellSize);
-    let row = Math.floor((e.clientY - fieldPos.y) / cellSize);
+    if (gameOver) {
+        if (e.clientX >= againButton.x && e.clientX <= againButton.x + againButton.width &&
+            e.clientY >= againButton.y && e.clientY <= againButton.y + againButton.height) {
 
-    console.log(e.clientX, e.clientY, startButton);
-    if (e.clientX >= startButton.x && e.clientX <= startButton.x + startButton.width &&
-        e.clientY >= startButton.y && e.clientY <= startButton.y + startButton.height) {
+            init();
+            gameStarted = true;
+        }
 
-        console.log("Start click");
         return;
     }
+
+    if (!gameStarted) {
+        if (e.clientX >= startButton.x && e.clientX <= startButton.x + startButton.width &&
+            e.clientY >= startButton.y && e.clientY <= startButton.y + startButton.height) {
+
+            gameStarted = true;
+        }
+
+        return;
+    }
+
+    let col = Math.floor((e.clientX - fieldPos.x) / cellSize);
+    let row = Math.floor((e.clientY - fieldPos.y) / cellSize);
 
     if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows && numTreasures > 0) {
         let content = field[row][col];
         if (content === Nothing) {
             let minDistance = computeMinDistance(row, col);
-            maxPings--;
+            pingsCount--;
             field[row][col] = minDistance;
 
-            if (maxPings <= 0) {
+            if (pingsCount <= 0) {
                 gameOver = true;
             }
         } else if (content === Treasure) {
@@ -127,6 +163,36 @@ function distance(cell1, cell2) {
     return Math.max(Math.abs(cell1.col - cell2.col), Math.abs(cell1.row - cell2.row));
 }
 
+function drawButton(buttonText, width, height, textStyle, borderStyle) {
+    ctx.save();
+
+    ctx.shadowColor = 'rgba(255,255,255,0.7)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.strokeStyle = borderStyle;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, width, height, 25);
+    ctx.stroke();
+
+    ctx.font = "48px Share Tech Mono, monospace";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = textStyle;
+
+    let meas = ctx.measureText(buttonText);
+    ctx.fillText(buttonText, width/2 - meas.width/2, height/2 - (meas.actualBoundingBoxDescent-meas.actualBoundingBoxAscent)/2);
+
+    ctx.restore();
+}
+
+function textDim(text) {
+    let meas = ctx.measureText(text);
+    return {width: meas.width, height: meas.actualBoundingBoxDescent - meas.actualBoundingBoxAscent};
+}
+
+init();
+
 requestAnimationFrame(function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -136,28 +202,40 @@ requestAnimationFrame(function update() {
         ctx.drawImage(menuBgImage, 0, 0, canvas.width, canvas.height);
         ctx.restore();
 
-        ctx.save();
+        ctx.save()
+
+        ctx.save()
+
+        ctx.translate(pad, pad * 3);
+
         ctx.shadowColor = 'rgba(255,255,255,0.7)';
         ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        ctx.fillStyle = "rgb(108, 51, 145)"
+        ctx.font = "32px Share Tech Mono, monospace";
+        ctx.textBaseline = "top";
+        let firstPart = "С Днем рождения";
+        ctx.fillText(firstPart, 0, 0)
+        ctx.translate(0, textDim(firstPart).height + pad);
+
+        let secondPart = "Моя любимая"
+        ctx.fillText(secondPart, 0, 0)
+        ctx.translate(0, textDim(secondPart).height + pad);
+        ctx.fillText("Валька!!! 🥳", 0, 0)
+        ctx.restore();
+
 
         startButton.x = pad;
         startButton.y = canvas.height / 2;
-        ctx.translate(startButton.x, startButton.y);
-        ctx.strokeStyle = "white";
-        ctx.beginPath();
         startButton.width = canvas.width - pad*2;
         startButton.height = 80;
-        ctx.roundRect(0, 0, startButton.width, startButton.height, 25);
-        ctx.stroke();
+        ctx.translate(startButton.x, startButton.y);
 
-        ctx.font = "48px Share Tech Mono, monospace";
-        ctx.textBaseline = "top";
-        ctx.fillStyle = "white";
+        drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
 
-        let meas = ctx.measureText(menuStartText);
-        ctx.fillText(menuStartText, startButton.width/2 - meas.width/2, startButton.height/2 - (meas.actualBoundingBoxDescent-meas.actualBoundingBoxAscent)/2);
+
 
         ctx.restore();
 
@@ -170,13 +248,14 @@ requestAnimationFrame(function update() {
             ctx.filter = "blur(4px)";
         } else {
             ctx.filter = "none"
+            ctx.save();
             ctx.drawImage(bgImage, 0, 0);
 
             ctx.shadowColor = 'rgba(255,255,255,0.7)';
             ctx.shadowBlur = 3;
             ctx.shadowOffsetX = 1;
             ctx.shadowOffsetY = 1;
-            ctx.fillStyle = "red";
+            ctx.fillStyle = "rgb(191,69,69)";
             ctx.font = "32px Share Tech Mono, monospace";
             ctx.textBaseline = "top";
 
@@ -186,8 +265,21 @@ requestAnimationFrame(function update() {
             }
 
             let loseTextMeas = ctx.measureText(text)
-            let lostTextHeight = loseTextMeas.actualBoundingBoxDescent - loseTextMeas.actualBoundingBoxAscent;
-            ctx.fillText(text, canvas.width/2 - loseTextMeas.width/2, canvas.height/2 - lostTextHeight);
+            let textHeight = loseTextMeas.actualBoundingBoxDescent - loseTextMeas.actualBoundingBoxAscent;
+            let textX = canvas.width/2 - loseTextMeas.width/2;
+            let textY = canvas.height/2 - textHeight;
+            ctx.fillText(text, textX, textY);
+
+            ctx.save();
+            againButton.x = pad;
+            againButton.y = canvas.height / 2 + pad;
+            againButton.width = canvas.width - pad*2;
+            againButton.height = 80;
+            ctx.translate(pad, canvas.height / 2 + pad);
+            drawButton("Заново ↻", againButton.width, againButton.height, "white", "white");
+            ctx.restore()
+
+            ctx.restore()
 
             requestAnimationFrame(update);
 
@@ -195,7 +287,7 @@ requestAnimationFrame(function update() {
         }
     }
 
-    ctx.fillStyle = "rgb(21, 24, 27)"
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = "white";
@@ -278,7 +370,7 @@ requestAnimationFrame(function update() {
     ctx.save();
     ctx.font = "16px Share Tech Mono, monospace";
     ctx.fillStyle = "#c9c7c7";
-    ctx.fillText(`ОСТАЛОСЬ ЖМАКАНИЙ: ${maxPings}`, 0, 0);
+    ctx.fillText(`ОСТАЛОСЬ ЖМАКАНИЙ: ${pingsCount}`, 0, 0);
     ctx.restore();
 
     ctx.restore();
