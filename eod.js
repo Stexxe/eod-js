@@ -7,12 +7,14 @@ const loseText = "Увы, проиграла 😓";
 const winText = "Выиграла 😃";
 const menuStartText = "ИГРАТЬ ▶";
 
-const Nothing = -3;
+const Nothing = -4;
+const Hint = -3;
 const Treasure = -2;
 const RevealedTreasure = -1;
 
-const MAX_TREASURES = 3;
-const MAX_PINGS = 3;
+const MAX_TREASURES = 5;
+const MAX_PINGS = 12;
+const longPressMs = 500;
 
 let startButton = {};
 let againButton = {};
@@ -26,9 +28,11 @@ let numTreasures;
 let pingsCount;
 let field;
 
-
 let treasureImage = new Image();
 treasureImage.src = "assets/sprites/treasure_64x64.png";
+
+let markImage = new Image();
+markImage.src = "assets/sprites/mark.png";
 
 let menuBgImage = new Image();
 menuBgImage.src = "assets/bg.jpg";
@@ -99,10 +103,22 @@ function init() {
     fieldActualHeight = cellSize * fieldMaxRows;
 }
 
-window.addEventListener("click", function (e) {
+let pressTime;
+let cellPressed = false;
+let pressedCell = {row: -1, col: -1};
+let pressTimer;
+
+window.addEventListener("contextmenu", function(e) { e.preventDefault(); })
+
+
+window.addEventListener("touchstart", function (e) {
+    let touch = e.touches[0] || e.changedTouches[0];
+    let touchX = touch.clientX;
+    let touchY = touch.clientY;
+
     if (gameOver) {
-        if (e.clientX >= againButton.x && e.clientX <= againButton.x + againButton.width &&
-            e.clientY >= againButton.y && e.clientY <= againButton.y + againButton.height) {
+        if (touchX >= againButton.x && touchX <= againButton.x + againButton.width &&
+            touchY >= againButton.y && touchY <= againButton.y + againButton.height) {
 
             init();
             gameStarted = true;
@@ -112,8 +128,8 @@ window.addEventListener("click", function (e) {
     }
 
     if (!gameStarted) {
-        if (e.clientX >= startButton.x && e.clientX <= startButton.x + startButton.width &&
-            e.clientY >= startButton.y && e.clientY <= startButton.y + startButton.height) {
+        if (touchX >= startButton.x && touchX <= startButton.x + startButton.width &&
+            touchY >= startButton.y && touchY <= startButton.y + startButton.height) {
 
             gameStarted = true;
         }
@@ -121,23 +137,65 @@ window.addEventListener("click", function (e) {
         return;
     }
 
-    let col = Math.floor((e.clientX - fieldPos.x) / cellSize);
-    let row = Math.floor((e.clientY - fieldPos.y) / cellSize);
+    let col = Math.floor((touchX - fieldPos.x) / cellSize);
+    let row = Math.floor((touchY - fieldPos.y) / cellSize);
 
-    if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows && numTreasures > 0) {
-        let content = field[row][col];
-        if (content === Nothing) {
-            let minDistance = computeMinDistance(row, col);
-            pingsCount--;
-            field[row][col] = minDistance;
+    if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows) {
+        cellPressed = true;
+        pressedCell.col = col;
+        pressedCell.row = row;
+        pressTime = performance.now();
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(() => {
+            if (field[row][col] === Nothing || field[row][col] === Treasure) field[row][col] = Hint;
+        }, longPressMs);
+    }
+});
 
-            if (pingsCount <= 0) {
-                gameOver = true;
+window.addEventListener("touchmove", function (e) {
+    let elapsedTime = performance.now() - pressTime;
+    if (cellPressed && elapsedTime > longPressMs) {
+        let touch = e.touches[0] || e.changedTouches[0];
+        let touchX = touch.clientX;
+        let touchY = touch.clientY;
+
+        let col = Math.floor((touchX - fieldPos.x) / cellSize);
+        let row = Math.floor((touchY - fieldPos.y) / cellSize);
+
+        if (col >= 0 && row >= 0 && col < fieldMaxCols && row < fieldMaxRows) {
+            if (field[row][col] === Nothing || field[row][col] === Treasure) field[row][col] = Hint;
+        }
+    }
+});
+
+window.addEventListener("touchend", function (e) {
+    let touch = e.touches[0] || e.changedTouches[0];
+    let touchX = touch.clientX;
+    let touchY = touch.clientY;
+
+    let elapsedTime = performance.now() - pressTime;
+    if (elapsedTime < longPressMs) {
+        let col = Math.floor((touchX - fieldPos.x) / cellSize);
+        let row = Math.floor((touchY - fieldPos.y) / cellSize);
+
+        if (cellPressed && pressedCell.col === col && pressedCell.row === row) {
+            clearInterval(pressTimer);
+            let content = field[row][col];
+            if (content === Nothing) {
+                let minDistance = computeMinDistance(row, col);
+                pingsCount--;
+                field[row][col] = minDistance;
+
+                if (pingsCount <= 0) {
+                    gameOver = true;
+                }
+            } else if (content === Treasure) {
+                field[row][col] = RevealedTreasure;
+                numTreasures--;
+                gameOver = (numTreasures === 0);
             }
-        } else if (content === Treasure) {
-            field[row][col] = RevealedTreasure;
-            numTreasures--;
-            gameOver = (numTreasures === 0);
+
+            cellPressed = false;
         }
     }
 });
@@ -191,6 +249,13 @@ function textDim(text) {
     return {width: meas.width, height: meas.actualBoundingBoxDescent - meas.actualBoundingBoxAscent};
 }
 
+function applyShadow() {
+    ctx.shadowColor = 'rgba(255,255,255,0.7)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+}
+
 init();
 
 requestAnimationFrame(function update() {
@@ -208,22 +273,19 @@ requestAnimationFrame(function update() {
 
         ctx.translate(pad, pad * 3);
 
-        ctx.shadowColor = 'rgba(255,255,255,0.7)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
+        applyShadow();
 
         ctx.fillStyle = "rgb(108, 51, 145)"
         ctx.font = "32px Share Tech Mono, monospace";
         ctx.textBaseline = "top";
-        let firstPart = "С Днем рождения";
+        let firstPart = "С Днем Рождения 🎁";
         ctx.fillText(firstPart, 0, 0)
         ctx.translate(0, textDim(firstPart).height + pad);
 
-        let secondPart = "Моя любимая"
+        let secondPart = "Моя Любимая ❤️"
         ctx.fillText(secondPart, 0, 0)
         ctx.translate(0, textDim(secondPart).height + pad);
-        ctx.fillText("Валька!!! 🥳", 0, 0)
+        ctx.fillText("Валька!!! 🥳", 0, 0);
         ctx.restore();
 
 
@@ -234,8 +296,6 @@ requestAnimationFrame(function update() {
         ctx.translate(startButton.x, startButton.y);
 
         drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
-
-
 
         ctx.restore();
 
@@ -324,12 +384,20 @@ requestAnimationFrame(function update() {
                 case Nothing: {
                     // Render nothing
                 } break;
+                case Hint: {
+                    let w = cellSize/1.5;
+                    let h = cellSize/1.5;
+                    let x = c  * cellSize + cellSize/2 - w / 2;
+                    let y = r * cellSize + cellSize/2 - w / 2;
+
+                    ctx.drawImage(markImage, x, y, w, h);
+                } break;
                 case Treasure: {
-                    // TODO: Hide after
-                    ctx.save();
-                    ctx.fillStyle = "red";
-                    ctx.fillRect(c * cellSize + 10, r  * cellSize + 10, 4, 4);
-                    ctx.restore();
+                    // // TODO: Hide after
+                    // ctx.save();
+                    // ctx.fillStyle = "red";
+                    // ctx.fillRect(c * cellSize + 10, r  * cellSize + 10, 4, 4);
+                    // ctx.restore();
                 } break;
                 case RevealedTreasure: {
                     let w = cellSize/1.5;
