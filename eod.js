@@ -333,7 +333,7 @@ requestAnimationFrame(function update() {
 
         ctx.save()
 
-        translate(pad, pad * 3);
+        translate(pad, pad * 2);
 
         applyShadow();
 
