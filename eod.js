@@ -1,6 +1,7 @@
 'use strict';
 
 const delColor = "rgb(34, 51, 55)";
+const locatorColor = "rgb(89,114,121)";
 const bgColor = "rgb(21, 24, 27)";
 const title = "СОКРОВИЩА ГЛУБИН";
 const loseText = "Увы, проиграла 😓";
@@ -14,6 +15,10 @@ const RevealedTreasure = -1;
 const MAX_TREASURES = 5;
 const MAX_PINGS = 12;
 const longPressMs = 500;
+
+const START_LOCATOR_RAD = 10;
+const NEW_LOCATOR_DIFF = 20;
+const MAX_CIRCLES = 5;
 
 let startButton = {};
 let againButton = {};
@@ -73,6 +78,8 @@ let fieldActualHeight;
 let bgImage;
 let bgSaved;
 
+let locatorAnims = [];
+
 function init() {
     gameStarted = false;
     gameOver = false;
@@ -114,6 +121,8 @@ function init() {
         bgSaved = true;
     }
 
+    locatorAnims = [];
+
     fieldPos = {x: pad, y: pad + titleHeight + 20};
 
     fieldWidth = canvas.width - pad * 2;
@@ -129,7 +138,6 @@ let pressTimer;
 
 window.addEventListener("contextmenu", function(e) { e.preventDefault(); })
 
-// TODO: Add locator effect
 window.addEventListener("touchstart", function (e) {
     let touch = e.touches[0] || e.changedTouches[0];
     let touchX = touch.clientX;
@@ -210,6 +218,7 @@ window.addEventListener("touchend", function (e) {
                 let minDistance = computeMinDistance(row, col);
                 pingsCount--;
                 field[row][col] = minDistance;
+                startLocatorAnim(col * cellSize + cellSize/2, row * cellSize + cellSize/2, minDistance * cellSize + cellSize/2);
 
                 if (pingsCount <= 0) {
                     gameOver = true;
@@ -286,6 +295,16 @@ function applyShadow() {
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 1;
     ctx.shadowOffsetY = 1;
+}
+
+function startLocatorAnim(x, y, maxRad) {
+    locatorAnims.push({x: x, y: y, maxRad: maxRad, rads: [START_LOCATOR_RAD], diff: 0});
+}
+
+function drawCircle(x, y, radius) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
 }
 
 function fillMultiText(text, lineHeight) {
@@ -497,6 +516,37 @@ requestAnimationFrame(function update() {
             }
         }
     }
+
+    ctx.save();
+
+    locatorAnims = locatorAnims.filter((anim) => {
+        return anim.rads.some(r => r < anim.maxRad)
+    });
+    let inc = 1;
+
+    ctx.strokeStyle = locatorColor;
+    for (let anim of locatorAnims) {
+        for (let i = 0; i < anim.rads.length; i++) {
+            drawCircle(anim.x, anim.y, anim.rads[i]);
+            anim.rads[i] += inc;
+
+            if (anim.rads[i] >= anim.maxRad) {
+                anim.rads[i] = anim.maxRad;
+            }
+        }
+
+        anim.diff += inc;
+
+        if (anim.diff >= NEW_LOCATOR_DIFF) {
+            if (anim.rads.length < MAX_CIRCLES) {
+                anim.rads.push(START_LOCATOR_RAD);
+            }
+
+            anim.diff = 0;
+        }
+    }
+
+    ctx.restore();
 
     translate(0, fieldActualHeight);
     translate(0, 24);
