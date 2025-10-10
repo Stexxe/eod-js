@@ -329,11 +329,11 @@ requestAnimationFrame(function update() {
         ctx.drawImage(menuBgImage, 0, 0, canvas.width, canvas.height);
         ctx.restore();
 
-        ctx.save()
-
+        // ctx.save()
         ctx.save()
 
         translate(pad, pad * 2);
+
 
         applyShadow();
 
@@ -348,13 +348,12 @@ requestAnimationFrame(function update() {
         ctx.fillText(secondPart, 0, 0)
         translate(0, textDim(secondPart).height + pad);
         ctx.fillText("Валька!!! 🥳", 0, 0);
-        ctx.restore();
 
-        startButton.x = pad;
-        startButton.y = canvas.height / 2;
         startButton.width = canvas.width - pad*2;
         startButton.height = 80;
-        translate(startButton.x, startButton.y - startButton.height / 2);
+        translate(0, pad*4);
+        startButton.x = globalPos.x;
+        startButton.y = globalPos.y;
 
         drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
 
@@ -535,9 +534,9 @@ requestAnimationFrame(function update() {
     ctx.stroke();
     ctx.drawImage(markImage, 0, 0, toggleButton.width, toggleButton.height);
 
-    translate(pad*2 + toggleButton.width - canvas.width, toggleButton.height + pad);
+    translate(pad*2 + toggleButton.width - canvas.width, toggleButton.height + pad/2);
     ctx.textBaseline = "top";
-    ctx.font = "16px Share Tech Mono, monospace";
+    ctx.font = "14px Share Tech Mono, monospace";
     ctx.fillStyle = "#2c717d";
     fillMultiText("💡 Найди все спрятанные сокровища. " +
         "Цифры обозначают расстояние до ближайшего сокровища. " +
