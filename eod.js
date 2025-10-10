@@ -354,7 +354,7 @@ requestAnimationFrame(function update() {
         startButton.y = canvas.height / 2;
         startButton.width = canvas.width - pad*2;
         startButton.height = 80;
-        translate(startButton.x, startButton.y);
+        translate(startButton.x, startButton.y - startButton.height / 2);
 
         drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
 
