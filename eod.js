@@ -535,13 +535,13 @@ requestAnimationFrame(function update() {
     ctx.stroke();
     ctx.drawImage(markImage, 0, 0, toggleButton.width, toggleButton.height);
 
-    translate(pad*2 + toggleButton.width - canvas.width, toggleButton.height + pad*2);
+    translate(pad*2 + toggleButton.width - canvas.width, toggleButton.height + pad);
     ctx.textBaseline = "top";
-    ctx.font = "20px Share Tech Mono, monospace";
+    ctx.font = "16px Share Tech Mono, monospace";
     ctx.fillStyle = "#2c717d";
     fillMultiText("💡 Найди все спрятанные сокровища. " +
         "Цифры обозначают расстояние до ближайшего сокровища. " +
-        "Нажми на клетку и держи чтобы поставить ✓, в тех местах где ты думаешь сокровищ точно нет. Большая квадратная кнопка", 30);
+        "Нажми на клетку и держи чтобы поставить ✓, в тех местах где ты думаешь сокровищ точно нет.", 30);
 
     ctx.restore();
     ctx.restore();
