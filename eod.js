@@ -33,6 +33,9 @@ let globalPos = {x: 0, y: 0};
 
 let putHint;
 
+let logoImage = new Image();
+logoImage.src = "assets/logo.png";
+
 let treasureImage = new Image();
 treasureImage.src = "assets/sprites/treasure_64x64.png";
 
@@ -127,7 +130,6 @@ let pressTimer;
 window.addEventListener("contextmenu", function(e) { e.preventDefault(); })
 
 // TODO: Add locator effect
-// TODO: Add image to the main screen
 window.addEventListener("touchstart", function (e) {
     let touch = e.touches[0] || e.changedTouches[0];
     let touchX = touch.clientX;
@@ -301,7 +303,7 @@ function fillMultiText(text, lineHeight) {
                 let t = safeSlice(text, start, end)
                 ctx.fillText(t, 0, 0);
                 let meas = ctx.measureText(t);
-                ctx.translate(0, Math.max(lineHeight, meas.actualBoundingBoxDescent - meas.actualBoundingBoxAscent));
+                translate(0, Math.max(lineHeight, meas.actualBoundingBoxDescent - meas.actualBoundingBoxAscent));
                 start = end + 1;
             }
         }
@@ -321,7 +323,7 @@ init();
 requestAnimationFrame(function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!gameStarted) {
+    if (!gameStarted) { // Main menu
         ctx.save();
         ctx.filter = "invert(55%) contrast(100%) hue-rotate(45deg) sepia(30%)";
         ctx.drawImage(menuBgImage, 0, 0, canvas.width, canvas.height);
@@ -348,7 +350,6 @@ requestAnimationFrame(function update() {
         ctx.fillText("Валька!!! 🥳", 0, 0);
         ctx.restore();
 
-
         startButton.x = pad;
         startButton.y = canvas.height / 2;
         startButton.width = canvas.width - pad*2;
@@ -357,8 +358,22 @@ requestAnimationFrame(function update() {
 
         drawButton(menuStartText, startButton.width, startButton.height, bgColor, bgColor);
 
+        translate(0, startButton.height + pad);
+        let ratio = 1.37
+        let imageW = canvas.width - pad*2;
+        let imageH = imageW / ratio;
+
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(imageW/2, imageH/2, 120, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.drawImage(logoImage, 0, 0, imageW, imageH);
+
         ctx.restore();
 
+        globalPos = {x: 0, y: 0};
         requestAnimationFrame(update);
         return;
     }
@@ -441,6 +456,8 @@ requestAnimationFrame(function update() {
         for (let c = 0; c < fieldMaxCols; c++) {
             let content = field[r][c];
 
+            let rendered = false;
+
             switch (content) {
                 case Nothing: {
                     // Render nothing
@@ -458,6 +475,7 @@ requestAnimationFrame(function update() {
                     let y = r * cellSize + cellSize/2 - w / 2;
 
                     ctx.drawImage(treasureImage, x, y, w, h);
+                    rendered = true;
                 } break;
                 default: {
                     let dist = content;
@@ -466,10 +484,11 @@ requestAnimationFrame(function update() {
                     let y = r * cellSize + numDim.actualBoundingBoxAscent + cellSize/2 - (numDim.actualBoundingBoxDescent - numDim.actualBoundingBoxAscent)/2;
                     ctx.font = "32px Share Tech Mono, monospace";
                     ctx.fillText(dist.toString(10), x, y);
+                    rendered = true;
                 } break;
             }
 
-            if (hints[r][c]) {
+            if (!rendered && hints[r][c]) {
                 let w = cellSize/1.5;
                 let h = cellSize/1.5;
                 let x = c  * cellSize + cellSize/2 - w / 2;
