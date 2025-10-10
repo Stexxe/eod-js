@@ -7,7 +7,7 @@ const loseText = "Увы, проиграла 😓";
 const winText = "Выиграла 😃";
 const menuStartText = "ИГРАТЬ ▶";
 
-const Nothing = -4;
+const Nothing = -3;
 const Treasure = -2;
 const RevealedTreasure = -1;
 
@@ -127,7 +127,7 @@ let pressTimer;
 window.addEventListener("contextmenu", function(e) { e.preventDefault(); })
 
 // TODO: Add locator effect
-// TODO: Add instruction below the field
+// TODO: Add image to the main screen
 window.addEventListener("touchstart", function (e) {
     let touch = e.touches[0] || e.changedTouches[0];
     let touchX = touch.clientX;
@@ -286,6 +286,36 @@ function applyShadow() {
     ctx.shadowOffsetY = 1;
 }
 
+function fillMultiText(text, lineHeight) {
+    let maxWidth = canvas.width - pad*2;
+
+    let start = 0;
+    let end = 0;
+    let i = 0;
+    for (let c of text) {
+        if (/\s/.test(c)) {
+            let chunk = safeSlice(text, start, i);
+            if (ctx.measureText(chunk).width < maxWidth) {
+                end = i;
+            } else {
+                let t = safeSlice(text, start, end)
+                ctx.fillText(t, 0, 0);
+                let meas = ctx.measureText(t);
+                ctx.translate(0, Math.max(lineHeight, meas.actualBoundingBoxDescent - meas.actualBoundingBoxAscent));
+                start = end + 1;
+            }
+        }
+
+        i++;
+    }
+
+    ctx.fillText(safeSlice(text, start), 0, 0);
+
+    function safeSlice(str, start, end) {
+        return Array.from(str).slice(start, end).join('');
+    }
+}
+
 init();
 
 requestAnimationFrame(function update() {
@@ -416,7 +446,6 @@ requestAnimationFrame(function update() {
                     // Render nothing
                 } break;
                 case Treasure: {
-                    // // TODO: Hide after
                     // ctx.save();
                     // ctx.fillStyle = "red";
                     // ctx.fillRect(c * cellSize + 10, r  * cellSize + 10, 4, 4);
@@ -486,10 +515,17 @@ requestAnimationFrame(function update() {
     ctx.fillRect(0, 0, toggleButton.width, toggleButton.height);
     ctx.stroke();
     ctx.drawImage(markImage, 0, 0, toggleButton.width, toggleButton.height);
-    ctx.restore();
+
+    translate(pad*2 + toggleButton.width - canvas.width, toggleButton.height + pad*2);
+    ctx.textBaseline = "top";
+    ctx.font = "20px Share Tech Mono, monospace";
+    ctx.fillStyle = "#2c717d";
+    fillMultiText("💡 Найди все спрятанные сокровища. " +
+        "Цифры обозначают расстояние до ближайшего сокровища. " +
+        "Нажми на клетку и держи чтобы поставить ✓, в тех местах где ты думаешь сокровищ точно нет. Большая квадратная кнопка", 30);
 
     ctx.restore();
-
+    ctx.restore();
 
     if (gameOver && !bgSaved) {
         ctx.save()
