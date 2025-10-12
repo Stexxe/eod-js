@@ -13,7 +13,7 @@ const Treasure = -2;
 const RevealedTreasure = -1;
 
 const MAX_TREASURES = 5;
-const MAX_PINGS = 12;
+const MAX_PINGS = 20;
 const longPressMs = 500;
 
 const START_LOCATOR_RAD = 10;
@@ -350,11 +350,6 @@ requestAnimationFrame(function update() {
 
         // ctx.save()
         ctx.save()
-        // TODO: Remove dimensions
-        ctx.save()
-        ctx.fillStyle = 'black';
-        ctx.fillText(`${window.innerWidth}x${window.innerHeight}`, 100, 100)
-        ctx.restore()
 
         translate(pad, pad * 2);
 
@@ -388,7 +383,7 @@ requestAnimationFrame(function update() {
 
         ctx.globalAlpha = 0.7;
         ctx.beginPath();
-        ctx.arc(imageW/2, imageH/2, 120, 0, Math.PI * 2);
+        ctx.arc(imageW/2, imageH/2, canvas.width/3, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
 
@@ -527,7 +522,7 @@ requestAnimationFrame(function update() {
     locatorAnims = locatorAnims.filter((anim) => {
         return anim.rads.some(r => r < anim.maxRad)
     });
-    let inc = 1;
+    let inc = 1.5;
 
     ctx.strokeStyle = locatorColor;
     for (let anim of locatorAnims) {
