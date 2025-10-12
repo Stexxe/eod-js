@@ -350,6 +350,11 @@ requestAnimationFrame(function update() {
 
         // ctx.save()
         ctx.save()
+        // TODO: Remove dimensions
+        ctx.save()
+        ctx.fillStyle = 'black';
+        ctx.fillText(`${window.innerWidth}x${window.innerHeight}`, 100, 100)
+        ctx.restore()
 
         translate(pad, pad * 2);
 
